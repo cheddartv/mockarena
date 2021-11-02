@@ -15,6 +15,9 @@ func NewServerConfig(m map[string]interface{}) (*ServerConfig, error) {
 	if x, ok := m["port"]; ok {
 		conf.Port = x.(int)
 	}
+	if x, ok := m["serial"]; ok {
+		conf.Serial = x.(bool)
+	}
 
 	if x, ok := m["returnSequence"]; ok {
 		var responses []*Response
