@@ -4,29 +4,30 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cheddartv/mockarena/internal/server/http/config"
 	"github.com/matryer/is"
 )
 
-func TestResponseRequest_next(t *testing.T) {
+func TestResponseSequence_next(t *testing.T) {
 	var (
 		until = time.Now().Add(300 * time.Millisecond)
-		rs    = ResponseSequence{
-			Responses: []*Response{
+		rs    = responseSequence{
+			responses: []*config.Response{
 				{
 					Body: []byte("1"),
-					Repeat: Repeat{
+					Repeat: config.Repeat{
 						Until: until,
 					},
 				},
 				{
 					Body: []byte("2"),
-					Repeat: Repeat{
+					Repeat: config.Repeat{
 						Count: 3,
 					},
 				},
 				{
 					Body: []byte("3"),
-					Repeat: Repeat{
+					Repeat: config.Repeat{
 						For: 300 * time.Millisecond,
 					},
 				},

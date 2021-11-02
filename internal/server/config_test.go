@@ -6,7 +6,7 @@ import (
 	"github.com/matryer/is"
 	"gopkg.in/yaml.v2"
 
-	"github.com/cheddartv/mockarena/internal/server/http"
+	httpconfig "github.com/cheddartv/mockarena/internal/server/http/config"
 )
 
 func TestConfiguration_UnmarshalYAML(t *testing.T) {
@@ -49,6 +49,6 @@ mocks:
 	is.Equal(c.ReportPath, "./out.json")
 	is.Equal(c.Port, 8080)
 	is.Equal(len(c.Mocks), 1)
-	_, ok := c.Mocks[0].Mock.(*http.ServerConfig)
+	_, ok := c.Mocks[0].Mock.(*httpconfig.ServerConfig)
 	is.True(ok)
 }

@@ -6,41 +6,34 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/cheddartv/mockarena/internal/server/http/config"
 )
 
-type HTTPServerStats struct {
-	Count      uint
-	PathCounts map[string]uint
-
-	sync.Mutex
-}
-
-func (ss *HTTPServerStats) Inc(path string) {
-	ss.Lock()
-	ss.Count++
-	if ss.PathCounts == nil {
-		ss.PathCounts = make(map[string]uint)
-	}
-	ss.PathCounts[path]++
-	ss.Unlock()
-}
-
 type HTTPServer struct {
-	stats HTTPServerStats
-
-	Sequential bool
-	Sequence   ResponseSequence
+	stats    httpServerStats
+	sequence *responseSequence
+	conf     config.ServerConfig
 
 	sync.Mutex
+}
+
+func NewHTTPServer(c config.ServerConfig) *HTTPServer {
+	var s HTTPServer
+
+	s.conf = c
+	s.sequence = newResponseSequence(c.ReturnSequence)
+
+	return &s
 }
 
 func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if s.Sequential {
+	if s.conf.Serial {
 		s.Lock()
 		defer s.Unlock()
 	}
 
-	s.stats.Inc(r.URL.Path)
+	s.stats.inc(r.URL.Path)
 
 	{
 		var data, err = json.MarshalIndent(s.stats, "", "\t")
@@ -51,7 +44,7 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(string(data))
 	}
 
-	var response = s.nextResponse()
+	var response = s.sequence.next()
 
 	if d := response.Delay; 0 < d {
 		time.Sleep(d)
@@ -71,8 +64,4 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if b := response.Body; b != nil {
 		w.Write(b)
 	}
-}
-
-func (s *HTTPServer) nextResponse() *Response {
-	return s.Sequence.next()
 }

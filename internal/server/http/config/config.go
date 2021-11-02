@@ -1,8 +1,9 @@
-package http
+package config
 
 type ServerConfig struct {
 	Name           string      `yaml:"name"`
 	Port           int         `yaml:"port"`
+	Serial         bool        `yaml:"serial"`
 	ReturnSequence []*Response `yaml:"returnSequence"`
 }
 
@@ -19,7 +20,7 @@ func NewServerConfig(m map[string]interface{}) (*ServerConfig, error) {
 		var responses []*Response
 
 		for _, iface := range x.([]interface{}) {
-			response, err := NewResponse(iface.(map[interface{}]interface{}))
+			response, err := newResponse(iface.(map[interface{}]interface{}))
 			if err != nil {
 				return nil, err
 			}

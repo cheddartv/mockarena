@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cheddartv/mockarena/internal/server/http"
+	httpconfig "github.com/cheddartv/mockarena/internal/server/http/config"
 	"gopkg.in/yaml.v2"
 )
 
@@ -30,7 +30,7 @@ func (mc *MockConfiguration) UnmarshalYAML(unmarshal func(interface{}) error) er
 
 	switch t := m["type"]; t {
 	case "HTTP":
-		conf, err := http.NewServerConfig(m)
+		conf, err := httpconfig.NewServerConfig(m)
 		if err != nil {
 			return err
 		}
