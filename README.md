@@ -25,7 +25,7 @@ mocks:
             count: 2
         - delay: 3s
           proxy:
-            host: "kraft.singles"
+            host: "http://kraft.singles"
         - header: *default_header
           body: "ERROR"
           status: 500

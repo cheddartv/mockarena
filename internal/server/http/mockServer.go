@@ -57,9 +57,17 @@ func (s *MockServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		pw.header = make(http.Header)
 		response.Proxy.ServeHTTP(&pw, r)
 		pw.closed = true
-		defer func() {
+		defer func(w http.ResponseWriter) {
+			var header = w.Header()
+			for k, v := range pw.header {
+				for _, h := range v {
+					header.Add(k, h)
+				}
+			}
+			w.WriteHeader(pw.status)
 			io.Copy(w, &pw)
-		}()
+		}(w)
+		w = &pw
 	}
 
 	if response.Header != nil {

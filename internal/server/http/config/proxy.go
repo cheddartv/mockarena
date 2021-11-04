@@ -93,7 +93,6 @@ func redirect(target *url.URL, req *http.Request) {
 	)
 
 	req.RequestURI = ""
-	req.URL = &url.URL{}
 	req.Host = target.Host
 
 	req.URL.Scheme = target.Scheme
