@@ -1,8 +1,10 @@
 package http
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"sync"
 	"time"
@@ -10,7 +12,7 @@ import (
 	"github.com/cheddartv/mockarena/internal/server/http/config"
 )
 
-type HTTPServer struct {
+type MockServer struct {
 	stats    httpServerStats
 	sequence *responseSequence
 	conf     config.ServerConfig
@@ -18,8 +20,8 @@ type HTTPServer struct {
 	sync.Mutex
 }
 
-func NewHTTPServer(c config.ServerConfig) *HTTPServer {
-	var s HTTPServer
+func NewMockServer(c config.ServerConfig) *MockServer {
+	var s MockServer
 
 	s.conf = c
 	s.sequence = newResponseSequence(c.ReturnSequence)
@@ -27,7 +29,7 @@ func NewHTTPServer(c config.ServerConfig) *HTTPServer {
 	return &s
 }
 
-func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *MockServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if s.conf.Serial {
 		s.Lock()
 		defer s.Unlock()
@@ -50,6 +52,16 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(d)
 	}
 
+	if response.Proxy != nil {
+		var pw ProxyResponseWriter
+		pw.header = make(http.Header)
+		response.Proxy.ServeHTTP(&pw, r)
+		pw.closed = true
+		defer func() {
+			io.Copy(w, &pw)
+		}()
+	}
+
 	if response.Header != nil {
 		var header = w.Header()
 		for _, h := range response.Header {
@@ -64,4 +76,27 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if b := response.Body; b != nil {
 		w.Write(b)
 	}
+}
+
+type ProxyResponseWriter struct {
+	header http.Header
+	status int
+	closed bool
+	bytes.Buffer
+}
+
+func (pw *ProxyResponseWriter) Header() http.Header {
+	return pw.header
+}
+
+func (pw *ProxyResponseWriter) WriteHeader(statusCode int) {
+	pw.status = statusCode
+}
+
+func (pw *ProxyResponseWriter) Write(p []byte) (int, error) {
+	if pw.closed {
+		return len(p), nil
+	}
+
+	return pw.Buffer.Write(p)
 }

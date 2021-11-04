@@ -9,8 +9,8 @@ type Response struct {
 	Body   []byte        `yaml:"body"`
 	Delay  time.Duration `yaml:"delay"`
 	Status int           `yaml:"status"`
-
-	Repeat Repeat `yaml:"repeat"`
+	Proxy  *Proxy        `yaml:"proxy"`
+	Repeat Repeat        `yaml:"repeat"`
 }
 
 func newResponse(imap map[interface{}]interface{}) (*Response, error) {
@@ -43,6 +43,15 @@ func newResponse(imap map[interface{}]interface{}) (*Response, error) {
 		response.Repeat = *repeat
 	} else {
 		response.Repeat.Count = 1
+	}
+
+	if x, ok := imap["proxy"]; ok {
+		proxy, err := NewProxy(x.(map[interface{}]interface{}))
+		if err != nil {
+			return nil, err
+		}
+
+		response.Proxy = proxy
 	}
 
 	if x, ok := imap["delay"]; ok {

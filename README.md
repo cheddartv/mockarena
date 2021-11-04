@@ -20,9 +20,12 @@ mocks:
           delay: 500ms
           status: 200
           repeat:
-            until: "2021-11-01 16:55:00"
-            for: 30s
+            # until: "2021-11-01 16:55:00"
+            # for: 30s
             count: 2
+        - delay: 3s
+          proxy:
+            host: "kraft.singles"
         - header: *default_header
           body: "ERROR"
           status: 500

@@ -28,7 +28,7 @@ func main() {
 		case *httpconfig.ServerConfig:
 			wg.Add(1)
 			go func() {
-				var s = mhttp.NewHTTPServer(*c)
+				var s = mhttp.NewMockServer(*c)
 				http.ListenAndServe(fmt.Sprintf("%s:%d", "", c.Port), s)
 				wg.Done()
 			}()
