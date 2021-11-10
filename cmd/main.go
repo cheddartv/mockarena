@@ -9,7 +9,6 @@ import (
 
 	"github.com/cheddartv/mockarena/internal/server"
 	mhttp "github.com/cheddartv/mockarena/internal/server/http"
-	httpconfig "github.com/cheddartv/mockarena/internal/server/http/config"
 )
 
 func main() {
@@ -25,7 +24,7 @@ func main() {
 	var wg sync.WaitGroup
 	for _, mockConf := range conf.Mocks {
 		switch c := mockConf.Mock.(type) {
-		case *httpconfig.ServerConfig:
+		case *mhttp.ServerConfig:
 			wg.Add(1)
 			go func() {
 				var s = mhttp.NewMockServer(*c)

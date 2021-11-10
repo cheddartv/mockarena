@@ -1,6 +1,7 @@
-package config
+package http
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"net/http"
@@ -107,4 +108,27 @@ func redirect(target *url.URL, req *http.Request) {
 		// explicitly disable User-Agent so it's not set to default value
 		req.Header.Set("User-Agent", "")
 	}
+}
+
+type ProxyResponseWriter struct {
+	header http.Header
+	status int
+	closed bool
+	bytes.Buffer
+}
+
+func (pw *ProxyResponseWriter) Header() http.Header {
+	return pw.header
+}
+
+func (pw *ProxyResponseWriter) WriteHeader(statusCode int) {
+	pw.status = statusCode
+}
+
+func (pw *ProxyResponseWriter) Write(p []byte) (int, error) {
+	if pw.closed {
+		return len(p), nil
+	}
+
+	return pw.Buffer.Write(p)
 }

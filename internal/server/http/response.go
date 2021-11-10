@@ -1,4 +1,4 @@
-package config
+package http
 
 import (
 	"time"
@@ -72,4 +72,52 @@ func newResponse(imap map[interface{}]interface{}) (*Response, error) {
 	}
 
 	return &response, nil
+}
+
+type Repeat struct {
+	Count uint          `yaml:"count"`
+	Until time.Time     `yaml:"until"`
+	For   time.Duration `yaml:"for"`
+}
+
+func NewRepeat(imap map[interface{}]interface{}) (*Repeat, error) {
+	var repeat Repeat
+
+	if x, ok := imap["until"]; ok {
+		t, err := time.Parse("2006-01-02 15:04:05", x.(string))
+		if err != nil {
+			return nil, err
+		}
+
+		repeat.Until = t
+	}
+
+	if x, ok := imap["for"]; ok {
+		d, err := time.ParseDuration(x.(string))
+		if err != nil {
+			return nil, err
+		}
+
+		repeat.For = d
+	}
+
+	if x, ok := imap["count"]; ok {
+		repeat.Count = uint(x.(int))
+	}
+
+	return &repeat, nil
+}
+
+type Header struct {
+	Key   string `yaml:"key"`
+	Value string `yaml:"value"`
+}
+
+func newHeader(imap map[interface{}]interface{}) (*Header, error) {
+	var header Header
+
+	header.Key = imap["key"].(string)
+	header.Value = imap["value"].(string)
+
+	return &header, nil
 }

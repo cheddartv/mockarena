@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	httpconfig "github.com/cheddartv/mockarena/internal/server/http/config"
+	httpconfig "github.com/cheddartv/mockarena/internal/server/http"
 	"gopkg.in/yaml.v2"
 )
 

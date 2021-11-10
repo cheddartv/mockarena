@@ -1,4 +1,4 @@
-package config
+package http
 
 type ServerConfig struct {
 	Name           string      `yaml:"name"`

@@ -1,26 +1,23 @@
 package http
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"sync"
 	"time"
-
-	"github.com/cheddartv/mockarena/internal/server/http/config"
 )
 
 type MockServer struct {
 	stats    httpServerStats
 	sequence *responseSequence
-	conf     config.ServerConfig
+	conf     ServerConfig
 
 	sync.Mutex
 }
 
-func NewMockServer(c config.ServerConfig) *MockServer {
+func NewMockServer(c ServerConfig) *MockServer {
 	var s MockServer
 
 	s.conf = c
@@ -86,25 +83,80 @@ func (s *MockServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type ProxyResponseWriter struct {
-	header http.Header
-	status int
-	closed bool
-	bytes.Buffer
+type responseSequence struct {
+	responses []*Response
+
+	responseCounts       map[*Response]uint
+	currentResponseStart *time.Time
+
+	sync.RWMutex
 }
 
-func (pw *ProxyResponseWriter) Header() http.Header {
-	return pw.header
+func newResponseSequence(responses []*Response) *responseSequence {
+	return &responseSequence{
+		responses: responses,
+	}
 }
 
-func (pw *ProxyResponseWriter) WriteHeader(statusCode int) {
-	pw.status = statusCode
+func (rs *responseSequence) next() *Response {
+	rs.Lock()
+	defer rs.Unlock()
+
+	return rs._next()
 }
 
-func (pw *ProxyResponseWriter) Write(p []byte) (int, error) {
-	if pw.closed {
-		return len(p), nil
+func (rs *responseSequence) _next() *Response {
+	if len(rs.responses) == 0 {
+		return nil
 	}
 
-	return pw.Buffer.Write(p)
+	var (
+		response = rs.responses[0]
+		repeat   = response.Repeat
+	)
+
+	switch {
+	case 0 < repeat.Count:
+		if rs.responseCounts == nil {
+			rs.responseCounts = make(map[*Response]uint)
+		}
+
+		if repeat.Count <= rs.responseCounts[response] {
+			// response count limit exceeded, discard and move on
+			rs.responses = rs.responses[1:]
+			return rs._next()
+		}
+
+		rs.responseCounts[response]++
+
+		return response
+	case !repeat.Until.IsZero():
+		var cutOff = repeat.Until
+
+		if !time.Now().Before(cutOff) {
+			// time limit exceeded, discard and move on
+			rs.responses = rs.responses[1:]
+			return rs._next()
+		}
+
+		return response
+	case 0 < repeat.For:
+		var now = time.Now()
+
+		if rs.currentResponseStart == nil {
+			rs.currentResponseStart = &now
+		}
+
+		if repeat.For < time.Since(*rs.currentResponseStart) {
+			// time limit exceeded, discard and move on
+			rs.currentResponseStart = nil
+
+			rs.responses = rs.responses[1:]
+			return rs._next()
+		}
+
+		return response
+	}
+
+	return nil
 }

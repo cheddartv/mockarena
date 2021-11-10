@@ -6,7 +6,7 @@ import (
 	"github.com/matryer/is"
 	"gopkg.in/yaml.v2"
 
-	httpconfig "github.com/cheddartv/mockarena/internal/server/http/config"
+	httpconfig "github.com/cheddartv/mockarena/internal/server/http"
 )
 
 func TestConfiguration_UnmarshalYAML(t *testing.T) {

@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cheddartv/mockarena/internal/server/http/config"
 	"github.com/matryer/is"
 )
 
@@ -12,22 +11,22 @@ func TestResponseSequence_next(t *testing.T) {
 	var (
 		until = time.Now().Add(300 * time.Millisecond)
 		rs    = responseSequence{
-			responses: []*config.Response{
+			responses: []*Response{
 				{
 					Body: []byte("1"),
-					Repeat: config.Repeat{
+					Repeat: Repeat{
 						Until: until,
 					},
 				},
 				{
 					Body: []byte("2"),
-					Repeat: config.Repeat{
+					Repeat: Repeat{
 						Count: 3,
 					},
 				},
 				{
 					Body: []byte("3"),
-					Repeat: config.Repeat{
+					Repeat: Repeat{
 						For: 300 * time.Millisecond,
 					},
 				},
