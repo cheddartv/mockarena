@@ -1,7 +1,6 @@
 package http
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 	"sync"
@@ -76,7 +75,6 @@ func NewMockServer(c ServerConfig) *MockServer {
 			s.Add(1)
 			go func(rs *responseSequence) {
 				<-rs.doneChan
-				fmt.Println(1)
 				s.Lock()
 				defer s.Unlock()
 				s.Done()
@@ -84,8 +82,6 @@ func NewMockServer(c ServerConfig) *MockServer {
 			route.Handler(handler)
 		}
 	}
-
-	fmt.Printf("POOP: %+v\n", *mux)
 
 	s.mux = mux
 	s.startedAt = time.Now()

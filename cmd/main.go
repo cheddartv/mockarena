@@ -18,12 +18,22 @@ import (
 )
 
 const helpMsg = `
-Usage: mockarena [-h] [-f <path>] [output_template]
-	output_template: A Go template string used to format output.
+Usage: mockarena [-h] [-c <path>] [-f <output_template>]
 
 Options:
-	-h --help  Show this help message.
-	-f --file  Path to the mockarena file describing the services to mock.
+	-h --help  			Show this help message.
+	-c --conf  			Path to the mockarena file describing the services to mock.
+	-f --template			Template the output.	 
+
+Templating:
+The template passed to the -f option operates on
+
+%s
+Where objects in the Mocks array are of type
+
+%s
+Templating Functions:
+%s
 `
 
 var (
@@ -33,10 +43,10 @@ var (
 )
 
 func init() {
-	flag.StringVarP(&filePath, "file", "f", "./mockarena.yaml", "Path to the mockarena file.")
+	flag.StringVarP(&filePath, "conf", "c", "./mockarena.yaml", "Path to the mockarena file.")
+	flag.StringVarP(&tmplt, "template", "f", "", "Template the output.")
 	flag.BoolVarP(&help, "help", "h", false, "Show help message.")
 	flag.Parse()
-	tmplt = flag.Arg(0)
 }
 
 func main() {
@@ -72,7 +82,6 @@ func main() {
 			go func(s *mhttp.MockServer) {
 				go http.ListenAndServe(fmt.Sprintf("%s:%d", "", c.Port), s)
 				s.Wait()
-				fmt.Println(10)
 				wg.Done()
 			}(s)
 		default:
@@ -95,12 +104,9 @@ func main() {
 	case <-doneChan:
 	}
 
-	var output = struct {
-		Mocks    []interface{}
-		Duration float64
-	}{
+	var output = output{
 		Mocks:    make([]interface{}, len(mocks)),
-		Duration: time.Now().Sub(startTime).Seconds(),
+		Duration: time.Since(startTime).Seconds(),
 	}
 	for idx := range output.Mocks {
 		output.Mocks[idx] = mocks[idx].ServerStats()
@@ -121,17 +127,27 @@ func main() {
 			log.Fatal(err)
 		}
 	case "":
-		var data, err = json.MarshalIndent(output, "", "\t")
-		if err != nil {
+		var encoder = json.NewEncoder(os.Stdout)
+		encoder.SetIndent("", "\t")
+		if err = encoder.Encode(output); err != nil {
 			panic(err)
 		}
-
-		fmt.Println(string(data))
 	}
 
 	retCode = 0
 }
 
+type output struct {
+	Mocks    []interface{}
+	Duration float64
+}
+
 func showHelp() {
-	fmt.Println(helpMsg)
+	fmt.Println(
+		fmt.Sprintf(helpMsg,
+			ttools.GenerateUsageUndecorated(output{}),
+			ttools.GenerateUsageUndecorated(mhttp.ServerStats{}),
+			ttools.TemplateFunctionHelp(ttools.NewConfig(ttools.OptAllFns)),
+		),
+	)
 }

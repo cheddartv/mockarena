@@ -1,3 +1,5 @@
+github.com/gbin/goncurses v0.0.0-20141106211150-34d9399fcea5 h1:1zsAMqM0C3Yjv9KWjh/68s/07bYeev6c0D4FwHkl13w=
+github.com/gbin/goncurses v0.0.0-20141106211150-34d9399fcea5/go.mod h1:dmRjyC3ZOQQ4EXWMOIAQi0TLaJPcg61LFsJ9mvhSGRE=
 github.com/gorilla/mux v1.8.0 h1:i40aqfkR1h2SlN9hojwV5ZA91wcXFOvkdNIeFDP5koI=
 github.com/gorilla/mux v1.8.0/go.mod h1:DVbg23sWSpFRCP0SfiEN6jmj59UnW/n46BH5rLB71So=
 github.com/intel/tfortools v0.3.0 h1:ZF5wuKvivH4UKDGarYyK/zy7G+iEYN/qr03WHt0ALMA=
