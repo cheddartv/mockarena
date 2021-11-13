@@ -1,162 +1,171 @@
 package http
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/gorilla/mux"
 )
 
+var allMethods = []string{
+	"GET",
+	"HEAD",
+	"POST",
+	"PUT",
+	"DELETE",
+	"CONNECT",
+	"OPTIONS",
+	"TRACE",
+}
+
 type MockServer struct {
-	stats    httpServerStats
-	sequence *responseSequence
-	conf     ServerConfig
+	stats httpServerStats
+	conf  ServerConfig
+
+	startedAt time.Time
+
+	mux http.Handler
 
 	sync.Mutex
+	sync.WaitGroup
 }
 
 func NewMockServer(c ServerConfig) *MockServer {
-	var s MockServer
+	var (
+		s      MockServer
+		mux    = mux.NewRouter()
+		record = c.Record
+	)
 
 	s.conf = c
-	s.sequence = newResponseSequence(c.ReturnSequence)
+	s.stats.Name = c.Name
 
+	for _, p := range c.Paths {
+		var (
+			path   = p.Path
+			router = mux.Path(p.Path).Subrouter()
+		)
+
+		if len(p.Record) != 0 {
+			record = p.Record
+		}
+
+		for _, mthd := range p.Methods {
+			var (
+				method  = mthd.Method
+				methods = allMethods
+			)
+
+			if method != "" {
+				methods = []string{method}
+			}
+
+			if len(c.Record) != 0 {
+				record = c.Record
+			}
+
+			var (
+				rs      = newResponseSequence(mthd.ReturnSequence)
+				handler = s.newHandler(path, record, rs)
+				route   = router.Methods(methods...)
+			)
+
+			s.Add(1)
+			go func(rs *responseSequence) {
+				<-rs.doneChan
+				fmt.Println(1)
+				s.Lock()
+				defer s.Unlock()
+				s.Done()
+			}(rs)
+			route.Handler(handler)
+		}
+	}
+
+	fmt.Printf("POOP: %+v\n", *mux)
+
+	s.mux = mux
+	s.startedAt = time.Now()
 	return &s
 }
 
-func (s *MockServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if s.conf.Serial {
-		s.Lock()
-		defer s.Unlock()
-	}
-
-	s.stats.inc(r.URL.Path)
-
-	{
-		var data, err = json.MarshalIndent(s.stats, "", "\t")
-		if err != nil {
-			panic(err)
+func (s *MockServer) newHandler(path string, record []string, rs *responseSequence) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.conf.Serial {
+			s.Lock()
+			defer s.Unlock()
 		}
 
-		fmt.Println(string(data))
-	}
+		var response = rs.next()
+		if response == nil {
+			zeroHandler(w, r)
+			return
+		}
 
-	var response = s.sequence.next()
+		s.stats.recordRequest(path, r.Method, r, record)
+		s.stats.inc(r.URL.Path, r.Method)
 
-	if d := response.Delay; 0 < d {
-		time.Sleep(d)
-	}
+		if d := response.Delay; 0 < d {
+			time.Sleep(d)
+		}
 
-	if response.Proxy != nil {
-		var pw ProxyResponseWriter
-		pw.header = make(http.Header)
-		response.Proxy.ServeHTTP(&pw, r)
-		pw.closed = true
-		defer func(w http.ResponseWriter) {
-			var header = w.Header()
-			for k, v := range pw.header {
-				for _, h := range v {
-					header.Add(k, h)
+		if response.Proxy != nil {
+			var pw ProxyResponseWriter
+			pw.header = make(http.Header)
+			response.Proxy.ServeHTTP(&pw, r)
+			pw.closed = true
+			defer func(w http.ResponseWriter) {
+				var header = w.Header()
+				for k, v := range pw.header {
+					for _, h := range v {
+						header.Add(k, h)
+					}
 				}
+				w.WriteHeader(pw.status)
+				io.Copy(w, &pw)
+			}(w)
+			w = &pw
+		}
+
+		if response.Header != nil {
+			var header = w.Header()
+			for _, h := range response.Header {
+				header.Add(h.Key, h.Value)
 			}
-			w.WriteHeader(pw.status)
-			io.Copy(w, &pw)
-		}(w)
-		w = &pw
-	}
-
-	if response.Header != nil {
-		var header = w.Header()
-		for _, h := range response.Header {
-			header.Add(h.Key, h.Value)
 		}
-	}
 
-	if c := response.Status; 0 < c {
-		w.WriteHeader(c)
-	}
+		if c := response.Status; 0 < c {
+			w.WriteHeader(c)
+		}
 
-	if b := response.Body; b != nil {
-		w.Write(b)
-	}
+		if b := response.Body; b != nil {
+			w.Write(b)
+		}
+	})
 }
 
-type responseSequence struct {
-	responses []*Response
-
-	responseCounts       map[*Response]uint
-	currentResponseStart *time.Time
-
-	sync.RWMutex
+func (s *MockServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.mux.ServeHTTP(w, r)
 }
 
-func newResponseSequence(responses []*Response) *responseSequence {
-	return &responseSequence{
-		responses: responses,
-	}
+func (s *MockServer) ServerStats() interface{} {
+	var ss = s.stats.ServerStats()
+	ss.SampledAt = time.Now()
+	ss.Duration = ss.SampledAt.Sub(s.startedAt).Seconds()
+
+	return ss
 }
 
-func (rs *responseSequence) next() *Response {
-	rs.Lock()
-	defer rs.Unlock()
-
-	return rs._next()
-}
-
-func (rs *responseSequence) _next() *Response {
-	if len(rs.responses) == 0 {
-		return nil
+func zeroHandler(w http.ResponseWriter, r *http.Request) {
+	if hj, ok := w.(http.Hijacker); ok {
+		conn, _, err := hj.Hijack()
+		if err == nil {
+			conn.Close()
+			return
+		}
 	}
-
-	var (
-		response = rs.responses[0]
-		repeat   = response.Repeat
-	)
-
-	switch {
-	case 0 < repeat.Count:
-		if rs.responseCounts == nil {
-			rs.responseCounts = make(map[*Response]uint)
-		}
-
-		if repeat.Count <= rs.responseCounts[response] {
-			// response count limit exceeded, discard and move on
-			rs.responses = rs.responses[1:]
-			return rs._next()
-		}
-
-		rs.responseCounts[response]++
-
-		return response
-	case !repeat.Until.IsZero():
-		var cutOff = repeat.Until
-
-		if !time.Now().Before(cutOff) {
-			// time limit exceeded, discard and move on
-			rs.responses = rs.responses[1:]
-			return rs._next()
-		}
-
-		return response
-	case 0 < repeat.For:
-		var now = time.Now()
-
-		if rs.currentResponseStart == nil {
-			rs.currentResponseStart = &now
-		}
-
-		if repeat.For < time.Since(*rs.currentResponseStart) {
-			// time limit exceeded, discard and move on
-			rs.currentResponseStart = nil
-
-			rs.responses = rs.responses[1:]
-			return rs._next()
-		}
-
-		return response
-	}
-
-	return nil
+	w.WriteHeader(http.StatusGone)
 }

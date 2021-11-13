@@ -41,22 +41,27 @@ func TestNewServerConfig(t *testing.T) {
 			expectedConfig: ServerConfig{
 				Name: "TEST_NAME",
 				Port: 27182,
-				ReturnSequence: []*Response{
+				Paths: []*Path{
 					{
-						Header: []Header{
+						Path: "",
+						ReturnSequence: []*Response{
 							{
-								Key:   "TEST_KEY",
-								Value: "TEST_VALUE",
+								Header: []Header{
+									{
+										Key:   "TEST_KEY",
+										Value: "TEST_VALUE",
+									},
+								},
+								Repeat: Repeat{
+									Count: 3,
+									Until: time.Date(2021, time.November, 1, 2, 3, 4, 0, time.UTC),
+									For:   80 * time.Second,
+								},
+								Delay:  12 * time.Second,
+								Body:   []byte("TEST_BODY"),
+								Status: 200,
 							},
 						},
-						Repeat: Repeat{
-							Count: 3,
-							Until: time.Date(2021, time.November, 1, 2, 3, 4, 0, time.UTC),
-							For:   80 * time.Second,
-						},
-						Delay:  12 * time.Second,
-						Body:   []byte("TEST_BODY"),
-						Status: 200,
 					},
 				},
 			},
@@ -76,8 +81,10 @@ func TestNewServerConfig(t *testing.T) {
 
 			is.Equal(sc.Name, expectedConfig.Name)
 			is.Equal(sc.Port, expectedConfig.Port)
-			for idx, r := range sc.ReturnSequence {
-				is.Equal(*r, *expectedConfig.ReturnSequence[idx])
+
+			var path = sc.Paths[0]
+			for idx, r := range path.ReturnSequence {
+				is.Equal(*r, *path.ReturnSequence[idx])
 			}
 		})
 	}
