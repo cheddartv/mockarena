@@ -19,22 +19,30 @@ func TestNewServerConfig(t *testing.T) {
 			imap: map[string]interface{}{
 				"name": "TEST_NAME",
 				"port": 27182,
-				"returnSequence": []interface{}{
+				"paths": []interface{}{
 					map[interface{}]interface{}{
-						"header": []interface{}{
+						"methods": []interface{}{
 							map[interface{}]interface{}{
-								"key":   "TEST_KEY",
-								"value": "TEST_VALUE",
+								"returnSequence": []interface{}{
+									map[interface{}]interface{}{
+										"header": []interface{}{
+											map[interface{}]interface{}{
+												"key":   "TEST_KEY",
+												"value": "TEST_VALUE",
+											},
+										},
+										"repeat": map[interface{}]interface{}{
+											"count": 3,
+											"for":   "1m20s",
+											"until": "2021-11-01 02:03:04",
+										},
+										"delay":  "12s",
+										"body":   "TEST_BODY",
+										"status": 200,
+									},
+								},
 							},
 						},
-						"repeat": map[interface{}]interface{}{
-							"count": 3,
-							"for":   "1m20s",
-							"until": "2021-11-01 02:03:04",
-						},
-						"delay":  "12s",
-						"body":   "TEST_BODY",
-						"status": 200,
 					},
 				},
 			},
@@ -44,22 +52,26 @@ func TestNewServerConfig(t *testing.T) {
 				Paths: []*Path{
 					{
 						Path: "",
-						ReturnSequence: []*Response{
+						Methods: []*Method{
 							{
-								Header: []Header{
+								ReturnSequence: []*Response{
 									{
-										Key:   "TEST_KEY",
-										Value: "TEST_VALUE",
+										Header: []Header{
+											{
+												Key:   "TEST_KEY",
+												Value: "TEST_VALUE",
+											},
+										},
+										Repeat: Repeat{
+											Count: 3,
+											Until: time.Date(2021, time.November, 1, 2, 3, 4, 0, time.UTC),
+											For:   80 * time.Second,
+										},
+										Delay:  12 * time.Second,
+										Body:   []byte("TEST_BODY"),
+										Status: 200,
 									},
 								},
-								Repeat: Repeat{
-									Count: 3,
-									Until: time.Date(2021, time.November, 1, 2, 3, 4, 0, time.UTC),
-									For:   80 * time.Second,
-								},
-								Delay:  12 * time.Second,
-								Body:   []byte("TEST_BODY"),
-								Status: 200,
 							},
 						},
 					},
@@ -82,9 +94,11 @@ func TestNewServerConfig(t *testing.T) {
 			is.Equal(sc.Name, expectedConfig.Name)
 			is.Equal(sc.Port, expectedConfig.Port)
 
+			is.True(0 < len(sc.Paths))
+
 			var path = sc.Paths[0]
-			for idx, r := range path.ReturnSequence {
-				is.Equal(*r, *path.ReturnSequence[idx])
+			for idx, r := range path.Methods[0].ReturnSequence {
+				is.Equal(*r, *path.Methods[0].ReturnSequence[idx])
 			}
 		})
 	}
