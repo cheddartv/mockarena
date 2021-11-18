@@ -13,6 +13,7 @@ import (
 
 	"github.com/cheddartv/mockarena/internal/server"
 	mhttp "github.com/cheddartv/mockarena/internal/server/http"
+	"github.com/cheddartv/mockarena/internal/server/sql/mysql"
 	ttools "github.com/intel/tfortools"
 	flag "github.com/spf13/pflag"
 )
@@ -81,6 +82,20 @@ func main() {
 
 			go func(s *mhttp.MockServer) {
 				go http.ListenAndServe(fmt.Sprintf("%s:%d", "", c.Port), s)
+				s.Wait()
+				wg.Done()
+			}(s)
+		case *mysql.ServerConfig:
+			wg.Add(1)
+			s, err := mysql.NewMockServer(*c)
+			if err != nil {
+				wg.Done()
+				log.Fatal(err)
+			}
+			mocks[idx] = s
+
+			go func(s *mysql.MockServer) {
+				go s.Start()
 				s.Wait()
 				wg.Done()
 			}(s)

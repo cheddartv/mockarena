@@ -5,6 +5,39 @@ A testing utility to mock out multiple network services and report on their usag
 ```yaml
 port: 8080
 mocks:
+  - name: "db"
+     type: "mysql"
+     port: 4000
+     databases:
+      - name: "main_db"
+        returnSequence:
+          - result:
+              rowsAffected: 2
+              insertID: 3
+            repeat:
+              for: 1m
+          - error:
+              sqlError:
+                num: 0
+                state: ""
+                message: ""
+          - rows:
+              fields:
+                - name: "field_name"
+                  type: "DATE"
+                  table: "students"
+                  charset: "latin1"
+                  decimals: "?"
+                  flags: ""
+              sessionStateChanges: "?"
+              statusFlagsRaw: 3
+              rows:
+                -
+                  - "2021-10-20"
+                -
+                  - "2021-10-21"
+            repeat:
+              forever: nonblocking
    - name: "web_server"
      type: "HTTP"
      port: 4000

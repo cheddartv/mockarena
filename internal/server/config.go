@@ -3,8 +3,9 @@ package server
 import (
 	"fmt"
 	"os"
+	"strings"
 
-	httpconfig "github.com/cheddartv/mockarena/internal/server/http"
+	"github.com/cheddartv/mockarena/internal/server/http"
 	"gopkg.in/yaml.v2"
 )
 
@@ -28,14 +29,15 @@ func (mc *MockConfiguration) UnmarshalYAML(unmarshal func(interface{}) error) er
 		return err
 	}
 
-	switch t := m["type"]; t {
-	case "HTTP":
-		conf, err := httpconfig.NewServerConfig(m)
+	switch t := m["type"]; strings.ToLower(t.(string)) {
+	case "http":
+		conf, err := http.NewServerConfig(m)
 		if err != nil {
 			return err
 		}
 
 		mc.Mock = conf
+	case "mysql":
 	default:
 		return fmt.Errorf("unsupported mock type: %s", t)
 	}
